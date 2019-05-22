@@ -3,6 +3,7 @@ package BLC
 import (
 	"bytes"
 	"crypto/sha256"
+	"fmt"
 	"strconv"
 	"time"
 )
@@ -18,15 +19,21 @@ type Block struct {
 	Timestamp int64
 	//5. hash
 	Hash []byte
+	//6. Nonce
+	Nonce int64
 }
 
 //1. 创建新的区块
 func NewBlock(data string, height int64, preBlockHash []byte) *Block {
 	//1. 生成区块
-	block := &Block{height, preBlockHash, []byte(data), time.Now().Unix(), nil}
-	//2. 设置hash
-	block.SetHash()
+	block := &Block{height, preBlockHash, []byte(data), time.Now().Unix(), nil, 0}
+	//2. 调用工作量证明的方法，并且返回有效的Hash和Nonce
+	pow := NewProofOfWork(block)
+	hash, nonce := pow.Run()
 
+	block.Hash = hash[:]
+	block.Nonce = nonce
+	fmt.Println()
 	return block
 }
 
