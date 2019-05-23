@@ -8,7 +8,7 @@ import (
 )
 
 //256位Hash里面前面至少要有16个0
-const targetBit = 16
+const targetBit = 20
 
 type ProofOfWork struct {
 	Block  *Block   //当前要验证的区块
@@ -28,6 +28,19 @@ func (pow *ProofOfWork) prepareData(nonce int) []byte {
 		[]byte{},
 	)
 	return data
+}
+
+func (proofOfWork *ProofOfWork) IsValid() bool {
+	//1. proofOfWork.Block.Hash
+	//2. proofOfWork.Block.Target
+	var hashInt big.Int
+	hashInt.SetBytes(proofOfWork.Block.Hash)
+
+	if proofOfWork.target.Cmp(&hashInt) == 1 {
+		return true
+	}
+
+	return false
 }
 
 func (ProofOfWork *ProofOfWork) Run() ([]byte, int64) {
