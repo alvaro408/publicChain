@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/gob"
-	"fmt"
 	"log"
 	"strconv"
 	"time"
@@ -62,7 +61,6 @@ func NewBlock(data string, height int64, preBlockHash []byte) *Block {
 
 	block.Hash = hash[:]
 	block.Nonce = nonce
-	fmt.Println()
 	return block
 }
 
