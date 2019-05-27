@@ -1,8 +1,10 @@
 package BLC
 
 import (
+	"fmt"
 	"github.com/boltdb/bolt"
 	"log"
+	"math/big"
 )
 
 const dbName = "blockchain.db"
@@ -14,14 +16,74 @@ type Blockchain struct {
 	DB  *bolt.DB
 }
 
+//遍历输出所有区块的信息
+func (blc *Blockchain) Printchain() {
+	var block *Block
+	var currentHash []byte = blc.Tip
+	for {
+		err := blc.DB.Update(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte(blockTableName))
+			if b != nil {
+				block = DeserializeBlock(b.Get(currentHash))
+
+				fmt.Println("新区快：")
+				fmt.Printf("Height: %d\n", block.Height)
+				fmt.Printf("PreBlockHash: %x\n", block.PreBlockHash)
+				fmt.Printf("Data: %s\n", block.Data)
+				fmt.Printf("Timestamp: %d\n", block.Timestamp)
+				fmt.Printf("Hash: %x\n", block.Hash)
+				fmt.Printf("Nonce: %d\n", block.Nonce)
+
+			}
+			return nil
+		})
+		if err != nil {
+			log.Panic(err)
+		}
+
+		var hashInt big.Int
+		hashInt.SetBytes(block.PreBlockHash)
+
+		if big.NewInt(0).Cmp(&hashInt) == 0 {
+			break
+		}
+
+		currentHash = block.PreBlockHash
+	}
+}
+
 //增加区块到区块链里面
-//func (blc *Blockchain) AddBlockToBlcokchain(data string, height int64, preHash []byte) {
-//	//创建新区快
-//	newBlock := NewBlock(data, height, preHash)
-//	//往链里边添加区块
-//	blc.Blocks = append(blc.Blocks, newBlock)
-//
-//}
+func (blc *Blockchain) AddBlockToBlcokchain(data string) {
+	//创建新区快
+
+	err := blc.DB.Update(func(tx *bolt.Tx) error {
+		//1.获取表
+		b := tx.Bucket([]byte(blockTableName))
+		//2.创建新区快
+		if b != nil {
+			//先获取最新区块,并反序列化
+			block := DeserializeBlock(b.Get(blc.Tip))
+
+			//3.将区块序列化并且存储到数据库中
+			newBlock := NewBlock(data, block.Height+1, block.Hash)
+			err := b.Put(newBlock.Hash, newBlock.Serialize())
+			if err != nil {
+				log.Panic(err)
+			}
+			//4.更新数据库中l对应的hash
+			err = b.Put([]byte("l"), newBlock.Hash)
+			if err != nil {
+				log.Panic(err)
+			}
+			//5.更新blockchain的Tip
+			blc.Tip = newBlock.Hash
+		}
+		return nil
+	})
+	if err != nil {
+		log.Panic(err)
+	}
+}
 
 //1. 创建带有创世区块的区块链
 func CreateBlockchainWithGenesisBlock() *Blockchain {
@@ -33,13 +95,17 @@ func CreateBlockchainWithGenesisBlock() *Blockchain {
 	var blockHash []byte
 
 	err = db.Update(func(tx *bolt.Tx) error {
-		//尝试取表对象
-		b, err := tx.CreateBucket([]byte(blockTableName))
-		if err != nil {
-			log.Panic("created table failed: ", err)
+
+		b := tx.Bucket([]byte(blockTableName))
+		if b == nil {
+			//尝试取表对象
+			b, err = tx.CreateBucket([]byte(blockTableName))
+			if err != nil {
+				log.Panic("created table failed: ", err)
+			}
 		}
 
-		if b == nil {
+		if b != nil {
 			//创建创世区块
 			genesisBlock := CreateGenesisBlock("Genesis Data......")
 			//将创世区块存储到表中
