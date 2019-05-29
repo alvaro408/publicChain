@@ -5,6 +5,7 @@ import (
 	"github.com/boltdb/bolt"
 	"log"
 	"math/big"
+	"time"
 )
 
 const dbName = "blockchain.db"
@@ -18,29 +19,20 @@ type Blockchain struct {
 
 //遍历输出所有区块的信息
 func (blc *Blockchain) Printchain() {
-	var block *Block
-	var currentHash []byte = blc.Tip
+
+	blockchainIterator := blc.Iterator()
+
 	for {
-		err := blc.DB.Update(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte(blockTableName))
-			if b != nil {
-				block = DeserializeBlock(b.Get(currentHash))
+		block := blockchainIterator.Next()
 
-				fmt.Println("新区快：")
-				fmt.Printf("Height: %d\n", block.Height)
-				fmt.Printf("PreBlockHash: %x\n", block.PreBlockHash)
-				fmt.Printf("Data: %s\n", block.Data)
-				fmt.Printf("Timestamp: %d\n", block.Timestamp)
-				fmt.Printf("Hash: %x\n", block.Hash)
-				fmt.Printf("Nonce: %d\n", block.Nonce)
-
-			}
-			return nil
-		})
-		if err != nil {
-			log.Panic(err)
-		}
-
+		fmt.Println("新区快：")
+		fmt.Printf("Height: %d\n", block.Height)
+		fmt.Printf("PreBlockHash: %x\n", block.PreBlockHash)
+		fmt.Printf("Data: %s\n", block.Data)
+		fmt.Printf("Timestamp: %s\n", time.Unix(block.Timestamp, 0).Format("2006-01-02 03:04:05 PM"))
+		fmt.Printf("Hash: %x\n", block.Hash)
+		fmt.Printf("Nonce: %d\n", block.Nonce)
+		fmt.Println()
 		var hashInt big.Int
 		hashInt.SetBytes(block.PreBlockHash)
 
@@ -48,13 +40,12 @@ func (blc *Blockchain) Printchain() {
 			break
 		}
 
-		currentHash = block.PreBlockHash
 	}
+
 }
 
 //增加区块到区块链里面
 func (blc *Blockchain) AddBlockToBlcokchain(data string) {
-	//创建新区快
 
 	err := blc.DB.Update(func(tx *bolt.Tx) error {
 		//1.获取表
