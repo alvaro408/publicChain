@@ -5,6 +5,7 @@ import (
 	"github.com/boltdb/bolt"
 	"log"
 	"math/big"
+	"os"
 	"time"
 )
 
@@ -44,15 +45,21 @@ func (blc *Blockchain) Printchain() {
 
 }
 
+func dbExists() bool {
+	if _, err := os.Stat(dbName); os.IsNotExist(err) {
+		return false
+	}
+	return true
+}
+
 //增加区块到区块链里面
 func (blc *Blockchain) AddBlockToBlcokchain(data string) {
 
 	err := blc.DB.Update(func(tx *bolt.Tx) error {
 		//1.获取表
 		b := tx.Bucket([]byte(blockTableName))
-		//2.创建新区快
 		if b != nil {
-			//先获取最新区块,并反序列化
+			//2.获取最新区块,并反序列化
 			block := DeserializeBlock(b.Get(blc.Tip))
 
 			//3.将区块序列化并且存储到数据库中
@@ -78,6 +85,29 @@ func (blc *Blockchain) AddBlockToBlcokchain(data string) {
 
 //1. 创建带有创世区块的区块链
 func CreateBlockchainWithGenesisBlock() *Blockchain {
+	//判断创世区块是否存在
+	if dbExists() {
+		fmt.Println("创世区块已经存在")
+		db, err := bolt.Open(dbName, 0600, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		var blockChain *Blockchain
+		//如果创世区块存在，数据库必然也存在，取出数据库最新区块的hash和db返回
+		db.View(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte(blockTableName))
+			hash := b.Get([]byte("l"))
+			blockChain = &Blockchain{hash, db}
+			return nil
+		})
+		if err != nil {
+			log.Panic(err)
+		}
+		return blockChain
+	}
+
+	//创世区块不存在
 	db, err := bolt.Open(dbName, 0600, nil)
 	if err != nil {
 		log.Fatal(err)
@@ -86,17 +116,15 @@ func CreateBlockchainWithGenesisBlock() *Blockchain {
 	var blockHash []byte
 
 	err = db.Update(func(tx *bolt.Tx) error {
-
+		//尝试获取表对象，不存在就创建
 		b := tx.Bucket([]byte(blockTableName))
 		if b == nil {
-			//尝试取表对象
+			//创建表对象
 			b, err = tx.CreateBucket([]byte(blockTableName))
 			if err != nil {
 				log.Panic("created table failed: ", err)
 			}
-		}
-
-		if b != nil {
+		} else {
 			//创建创世区块
 			genesisBlock := CreateGenesisBlock("Genesis Data......")
 			//将创世区块存储到表中

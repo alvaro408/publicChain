@@ -9,15 +9,19 @@ func main() {
 	blockchain := BLC.CreateBlockchainWithGenesisBlock()
 	defer blockchain.DB.Close()
 
-	blockchain.AddBlockToBlcokchain("Send 100RMB To zhangqiang")
+	cli := &BLC.CLI{blockchain}
 
-	blockchain.AddBlockToBlcokchain("Send 100RMB To cangjingkong")
+	cli.Run()
 
-	blockchain.AddBlockToBlcokchain("Send 100RMB To juncheng")
-
-	blockchain.AddBlockToBlcokchain("Send 100RMB To haolin")
-
-	blockchain.Printchain()
+	//blockchain.AddBlockToBlcokchain("Send 100RMB To zhangqiang")
+	//
+	//blockchain.AddBlockToBlcokchain("Send 100RMB To cangjingkong")
+	//
+	//blockchain.AddBlockToBlcokchain("Send 100RMB To juncheng")
+	//
+	//blockchain.AddBlockToBlcokchain("Send 100RMB To haolin")
+	//
+	//blockchain.Printchain()
 	//fmt.Println(blockchain)
 	//fmt.Println(blockchain.Blocks)
 
