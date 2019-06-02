@@ -6,10 +6,7 @@ import (
 
 func main() {
 
-	blockchain := BLC.CreateBlockchainWithGenesisBlock()
-	defer blockchain.DB.Close()
-
-	cli := &BLC.CLI{blockchain}
+	cli := &BLC.CLI{}
 
 	cli.Run()
 

@@ -45,7 +45,7 @@ func (blc *Blockchain) Printchain() {
 
 }
 
-func dbExists() bool {
+func DBExists() bool {
 	if _, err := os.Stat(dbName); os.IsNotExist(err) {
 		return false
 	}
@@ -84,28 +84,14 @@ func (blc *Blockchain) AddBlockToBlcokchain(data string) {
 }
 
 //1. 创建带有创世区块的区块链
-func CreateBlockchainWithGenesisBlock() *Blockchain {
-	//判断创世区块是否存在
-	if dbExists() {
-		fmt.Println("创世区块已经存在")
-		db, err := bolt.Open(dbName, 0600, nil)
-		if err != nil {
-			log.Fatal(err)
-		}
+func CreateBlockchainWithGenesisBlock(data string) {
 
-		var blockChain *Blockchain
-		//如果创世区块存在，数据库必然也存在，取出数据库最新区块的hash和db返回
-		db.View(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte(blockTableName))
-			hash := b.Get([]byte("l"))
-			blockChain = &Blockchain{hash, db}
-			return nil
-		})
-		if err != nil {
-			log.Panic(err)
-		}
-		return blockChain
+	if DBExists() {
+		fmt.Println("创世区块已经存在")
+		os.Exit(1)
 	}
+
+	fmt.Println("正在创建创世区块...")
 
 	//创世区块不存在
 	db, err := bolt.Open(dbName, 0600, nil)
@@ -113,20 +99,16 @@ func CreateBlockchainWithGenesisBlock() *Blockchain {
 		log.Fatal(err)
 	}
 
-	var blockHash []byte
-
 	err = db.Update(func(tx *bolt.Tx) error {
-		//尝试获取表对象，不存在就创建
-		b := tx.Bucket([]byte(blockTableName))
-		if b == nil {
-			//创建表对象
-			b, err = tx.CreateBucket([]byte(blockTableName))
-			if err != nil {
-				log.Panic("created table failed: ", err)
-			}
-		} else {
+		//创建表对象
+		b, err := tx.CreateBucket([]byte(blockTableName))
+		if err != nil {
+			log.Panic("created table failed: ", err)
+		}
+
+		if b != nil {
 			//创建创世区块
-			genesisBlock := CreateGenesisBlock("Genesis Data......")
+			genesisBlock := CreateGenesisBlock(data)
 			//将创世区块存储到表中
 			err := b.Put(genesisBlock.Hash, genesisBlock.Serialize())
 			if err != nil {
@@ -139,12 +121,34 @@ func CreateBlockchainWithGenesisBlock() *Blockchain {
 				log.Panic("存储Hash失败: ", err)
 			}
 
-			blockHash = genesisBlock.Hash
 		}
 
 		return nil
 	})
 
-	//返回区块链对象
-	return &Blockchain{blockHash, db}
+}
+
+//返回Blockchain对象
+func BlockchainObject() *Blockchain {
+	db, err := bolt.Open(dbName, 0600, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var tip []byte
+
+	err = db.View(func(tx *bolt.Tx) error {
+
+		b := tx.Bucket([]byte(blockTableName))
+		if b != nil {
+			//读取最新区块的哈希
+			tip = b.Get([]byte("l"))
+		}
+		return nil
+	})
+	if err != nil {
+		log.Panic(err)
+	}
+
+	return &Blockchain{tip, db}
 }
