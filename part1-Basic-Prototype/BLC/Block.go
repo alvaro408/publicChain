@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/gob"
 	"log"
-	"strconv"
 	"time"
 )
 
@@ -15,13 +14,24 @@ type Block struct {
 	//2. 上一个区块的hash
 	PreBlockHash []byte
 	//3. 交易数据
-	Data []byte
+	Txs []*Transaction
 	//4. 时间戳
 	Timestamp int64
 	//5. hash
 	Hash []byte
 	//6. Nonce
 	Nonce int64
+}
+
+//需要将Txs转换成字节数组
+func (block *Block) HashTransactions() []byte {
+	var txHashes [][]byte
+	var txHash [32]byte
+	for _, tx := range block.Txs {
+		txHashes = append(txHashes, tx.TxHash)
+	}
+	txHash = sha256.Sum256(bytes.Join(txHashes, []byte{}))
+	return txHash[:]
 }
 
 //将区块序列化成字节数组
@@ -52,9 +62,9 @@ func DeserializeBlock(blockBytes []byte) *Block {
 }
 
 //1. 创建新的区块
-func NewBlock(data string, height int64, preBlockHash []byte) *Block {
+func NewBlock(txs []*Transaction, height int64, preBlockHash []byte) *Block {
 	//1. 生成区块
-	block := &Block{height, preBlockHash, []byte(data), time.Now().Unix(), nil, 0}
+	block := &Block{height, preBlockHash, txs, time.Now().Unix(), nil, 0}
 	//2. 调用工作量证明的方法，并且返回有效的Hash和Nonce
 	pow := NewProofOfWork(block)
 	hash, nonce := pow.Run()
@@ -65,20 +75,20 @@ func NewBlock(data string, height int64, preBlockHash []byte) *Block {
 }
 
 //2. 生成创世区块
-func CreateGenesisBlock(data string) *Block {
+func CreateGenesisBlock(txs []*Transaction) *Block {
 
-	return NewBlock(data, 1, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+	return NewBlock(txs, 1, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
 }
 
-func (block *Block) SetHash() {
-	//1. Height转换为字节数组
-	heightBytes := IntToHex(block.Height)
-	//2. 时间戳转换为字节数组
-	timeString := strconv.FormatInt(block.Timestamp, 2)
-	timeByte := []byte(timeString)
-	//3. 拼接所有属性
-	blockBytes := bytes.Join([][]byte{heightBytes, block.PreBlockHash, block.Data, timeByte, block.Hash}, []byte{})
-	//4. 生成Hash
-	hash := sha256.Sum256(blockBytes)
-	block.Hash = hash[:]
-}
+//func (block *Block) SetHash() {
+//	//1. Height转换为字节数组
+//	heightBytes := IntToHex(block.Height)
+//	//2. 时间戳转换为字节数组
+//	timeString := strconv.FormatInt(block.Timestamp, 2)
+//	timeByte := []byte(timeString)
+//	//3. 拼接所有属性
+//	blockBytes := bytes.Join([][]byte{heightBytes, block.PreBlockHash, block.Data, timeByte, block.Hash}, []byte{})
+//	//4. 生成Hash
+//	hash := sha256.Sum256(blockBytes)
+//	block.Hash = hash[:]
+//}

@@ -29,7 +29,7 @@ func (blc *Blockchain) Printchain() {
 		fmt.Println("新区快：")
 		fmt.Printf("Height: %d\n", block.Height)
 		fmt.Printf("PreBlockHash: %x\n", block.PreBlockHash)
-		fmt.Printf("Data: %s\n", block.Data)
+		fmt.Printf("Data: %v\n", block.Txs)
 		fmt.Printf("Timestamp: %s\n", time.Unix(block.Timestamp, 0).Format("2006-01-02 03:04:05 PM"))
 		fmt.Printf("Hash: %x\n", block.Hash)
 		fmt.Printf("Nonce: %d\n", block.Nonce)
@@ -53,7 +53,7 @@ func DBExists() bool {
 }
 
 //增加区块到区块链里面
-func (blc *Blockchain) AddBlockToBlcokchain(data string) {
+func (blc *Blockchain) AddBlockToBlcokchain(txs []*Transaction) {
 
 	err := blc.DB.Update(func(tx *bolt.Tx) error {
 		//1.获取表
@@ -63,7 +63,7 @@ func (blc *Blockchain) AddBlockToBlcokchain(data string) {
 			block := DeserializeBlock(b.Get(blc.Tip))
 
 			//3.将区块序列化并且存储到数据库中
-			newBlock := NewBlock(data, block.Height+1, block.Hash)
+			newBlock := NewBlock(txs, block.Height+1, block.Hash)
 			err := b.Put(newBlock.Hash, newBlock.Serialize())
 			if err != nil {
 				log.Panic(err)
@@ -84,7 +84,7 @@ func (blc *Blockchain) AddBlockToBlcokchain(data string) {
 }
 
 //1. 创建带有创世区块的区块链
-func CreateBlockchainWithGenesisBlock(data string) {
+func CreateBlockchainWithGenesisBlock(txs []*Transaction) {
 
 	if DBExists() {
 		fmt.Println("创世区块已经存在")
@@ -108,7 +108,7 @@ func CreateBlockchainWithGenesisBlock(data string) {
 
 		if b != nil {
 			//创建创世区块
-			genesisBlock := CreateGenesisBlock(data)
+			genesisBlock := CreateGenesisBlock(txs)
 			//将创世区块存储到表中
 			err := b.Put(genesisBlock.Hash, genesisBlock.Serialize())
 			if err != nil {

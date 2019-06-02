@@ -24,14 +24,14 @@ func isValidArgs() {
 	}
 }
 
-func (cli *CLI) addBlock(data string) {
+func (cli *CLI) addBlock(txs []*Transaction) {
 	if !DBExists() {
 		fmt.Println("数据库不存在。。。")
 		os.Exit(1)
 	}
 	blockchain := BlockchainObject()
 	defer blockchain.DB.Close()
-	blockchain.AddBlockToBlcokchain(data)
+	blockchain.AddBlockToBlcokchain(txs)
 }
 
 func (cli *CLI) printchain() {
@@ -44,8 +44,8 @@ func (cli *CLI) printchain() {
 	blockchain.Printchain()
 }
 
-func (cli *CLI) createGenesisBlockchain(data string) {
-	CreateBlockchainWithGenesisBlock(data)
+func (cli *CLI) createGenesisBlockchain(txs []*Transaction) {
+	CreateBlockchainWithGenesisBlock(txs)
 }
 
 func (cli *CLI) Run() {
@@ -85,7 +85,7 @@ func (cli *CLI) Run() {
 			os.Exit(1)
 		}
 		//fmt.Println(*flagAddBlockData)
-		cli.addBlock(*flagAddBlockData)
+		cli.addBlock([]*Transaction{})
 	}
 
 	if printChainCmd.Parsed() {
@@ -98,6 +98,6 @@ func (cli *CLI) Run() {
 			printUsage()
 			os.Exit(1)
 		}
-		cli.createGenesisBlockchain(*flagCreateBlockChainWithData)
+		cli.createGenesisBlockchain([]*Transaction{})
 	}
 }
