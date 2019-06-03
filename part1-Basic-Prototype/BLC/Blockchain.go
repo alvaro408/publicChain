@@ -29,11 +29,25 @@ func (blc *Blockchain) Printchain() {
 		fmt.Println("新区快：")
 		fmt.Printf("Height: %d\n", block.Height)
 		fmt.Printf("PreBlockHash: %x\n", block.PreBlockHash)
-		fmt.Printf("Data: %v\n", block.Txs)
+		fmt.Println("Txs:")
+		for _, tx := range block.Txs {
+			fmt.Printf("%x\n", tx.TxHash)
+			fmt.Println("Vins:")
+			for _, in := range tx.Vins {
+				fmt.Printf("%x\n", in.TxHash)
+				fmt.Printf("%d\n", in.Vout)
+				fmt.Printf("%s\n", in.ScriptSig)
+			}
+			fmt.Println("Vouts:")
+			for _, out := range tx.Vouts {
+				fmt.Println(out.Value)
+				fmt.Println(out.ScriptPubKey)
+			}
+		}
 		fmt.Printf("Timestamp: %s\n", time.Unix(block.Timestamp, 0).Format("2006-01-02 03:04:05 PM"))
 		fmt.Printf("Hash: %x\n", block.Hash)
 		fmt.Printf("Nonce: %d\n", block.Nonce)
-		fmt.Println()
+		fmt.Println("--------------------")
 		var hashInt big.Int
 		hashInt.SetBytes(block.PreBlockHash)
 
@@ -84,7 +98,7 @@ func (blc *Blockchain) AddBlockToBlcokchain(txs []*Transaction) {
 }
 
 //1. 创建带有创世区块的区块链
-func CreateBlockchainWithGenesisBlock(txs []*Transaction) {
+func CreateBlockchainWithGenesisBlock(address string) {
 
 	if DBExists() {
 		fmt.Println("创世区块已经存在")
@@ -107,8 +121,11 @@ func CreateBlockchainWithGenesisBlock(txs []*Transaction) {
 		}
 
 		if b != nil {
+
+			//创建了一个coinbase transaction
+			txCoinbase := NewCoinbaseTransaction(address)
 			//创建创世区块
-			genesisBlock := CreateGenesisBlock(txs)
+			genesisBlock := CreateGenesisBlock([]*Transaction{txCoinbase})
 			//将创世区块存储到表中
 			err := b.Put(genesisBlock.Hash, genesisBlock.Serialize())
 			if err != nil {
