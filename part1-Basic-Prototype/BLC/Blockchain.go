@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/big"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -98,7 +99,7 @@ func (blc *Blockchain) AddBlockToBlcokchain(txs []*Transaction) {
 }
 
 //1. 创建带有创世区块的区块链
-func CreateBlockchainWithGenesisBlock(address string) {
+func CreateBlockchainWithGenesisBlock(address string) *Blockchain {
 
 	if DBExists() {
 		fmt.Println("创世区块已经存在")
@@ -112,6 +113,8 @@ func CreateBlockchainWithGenesisBlock(address string) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	var genesisHash []byte
 
 	err = db.Update(func(tx *bolt.Tx) error {
 		//创建表对象
@@ -137,12 +140,12 @@ func CreateBlockchainWithGenesisBlock(address string) {
 			if err != nil {
 				log.Panic("存储Hash失败: ", err)
 			}
-
+			genesisHash = genesisBlock.Hash
 		}
 
 		return nil
 	})
-
+	return &Blockchain{genesisHash, db}
 }
 
 //返回Blockchain对象
@@ -168,4 +171,49 @@ func BlockchainObject() *Blockchain {
 	}
 
 	return &Blockchain{tip, db}
+}
+
+//挖掘新的区块
+func (blockchain *Blockchain) MineNewBlock(from []string, to []string, amount []string) {
+
+	//fmt.Println(from)
+	//fmt.Println(to)
+	//fmt.Println(amount)
+	//1.建立一笔交易
+	value, _ := strconv.Atoi(amount[0])
+
+	tx := NewSimpleTransaciton(from[0], to[0], value)
+
+	//1.通过相关算法建立交易transaction数组
+	var txs []*Transaction
+	txs = append(txs, tx)
+
+	var block *Block
+
+	blockchain.DB.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(blockTableName))
+		if b != nil {
+			hash := b.Get([]byte("l"))
+
+			block = DeserializeBlock(b.Get(hash))
+		}
+		return nil
+	})
+
+	//2.挖新的区块
+	block = NewBlock(txs, block.Height+1, block.Hash)
+
+	//3.存进数据库
+	blockchain.DB.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(blockTableName))
+		if b != nil {
+
+			b.Put(block.Hash, block.Serialize())
+			b.Put([]byte("l"), block.Hash)
+			blockchain.Tip = block.Hash
+
+		}
+		return nil
+	})
+
 }
