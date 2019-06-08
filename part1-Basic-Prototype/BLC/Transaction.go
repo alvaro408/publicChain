@@ -8,33 +8,48 @@ import (
 	"log"
 )
 
+// UTXO
 type Transaction struct {
-	//1.交易hash
+
+	//1. 交易hash
 	TxHash []byte
-	//2.输入
+
+	//2. 输入
 	Vins []*TXInput
-	//3.输出
+
+	//3. 输出
 	Vouts []*TXOutput
 }
 
-//1.创建创世区块时的transaction
+//[]byte{}
+
+// 判断当前的交易是否是Coinbase交易
+func (tx *Transaction) IsCoinbaseTransaction() bool {
+
+	return len(tx.Vins[0].TxHash) == 0 && tx.Vins[0].Vout == -1
+}
+
+//1. Transaction 创建分两种情况
+//1. 创世区块创建时的Transaction
 func NewCoinbaseTransaction(address string) *Transaction {
+
 	//代表消费
-	txInput := &TXInput{[]byte{}, -1, "Genesis Block"}
+	txInput := &TXInput{[]byte{}, -1, "Genesis Data"}
 
 	txOutput := &TXOutput{10, address}
 
 	txCoinbase := &Transaction{[]byte{}, []*TXInput{txInput}, []*TXOutput{txOutput}}
-	//设置哈希值
+
+	//设置hash值
 	txCoinbase.HashTransaction()
 
 	return txCoinbase
 }
 
-//将
 func (tx *Transaction) HashTransaction() {
-	//创建缓冲区
+
 	var result bytes.Buffer
+
 	encoder := gob.NewEncoder(&result)
 
 	err := encoder.Encode(tx)
@@ -47,29 +62,44 @@ func (tx *Transaction) HashTransaction() {
 	tx.TxHash = hash[:]
 }
 
-//2.转账时的transaction
-func NewSimpleTransaciton(from string, to string, amount int) *Transaction {
+//2. 转账时产生的Transaction
 
-	var txInputs []*TXInput
+func NewSimpleTransaction(from string, to string, amount int, blockchain *Blockchain, txs []*Transaction) *Transaction {
+
+	//$ ./bc send -from '["juncheng"]' -to '["zhangqiang"]' -amount '["2"]'
+	//	[juncheng]
+	//	[zhangqiang]
+	//	[2]
+
+	// 通过一个函数，返回
+	money, spendableUTXODic := blockchain.FindSpendableUTXOS(from, amount, txs)
+	//
+	//	{hash1:[0],hash2:[2,3]}
+
+	var txIntputs []*TXInput
 	var txOutputs []*TXOutput
 
-	//代表消费
-	bytes, _ := hex.DecodeString("a4362fed91252cbfc9c98b1320c7253d0d19505a1deb9b9354780c2908127f0f")
-	txInput := &TXInput{bytes, 0, from}
+	for txHash, indexArray := range spendableUTXODic {
 
-	//消费
-	txInputs = append(txInputs, txInput)
+		txHashBytes, _ := hex.DecodeString(txHash)
+		for _, index := range indexArray {
+			txInput := &TXInput{txHashBytes, index, from}
+			txIntputs = append(txIntputs, txInput)
+		}
 
-	//转账
+	}
+
+	// 转账
 	txOutput := &TXOutput{int64(amount), to}
 	txOutputs = append(txOutputs, txOutput)
 
-	//找零钱
-	txOutput = &TXOutput{10 - int64(amount), from}
+	// 找零
+	txOutput = &TXOutput{int64(money) - int64(amount), from}
 	txOutputs = append(txOutputs, txOutput)
 
-	tx := &Transaction{[]byte{}, txInputs, []*TXOutput{txOutput}}
-	//设置哈希值
+	tx := &Transaction{[]byte{}, txIntputs, txOutputs}
+
+	//设置hash值
 	tx.HashTransaction()
 
 	return tx
